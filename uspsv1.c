@@ -74,10 +74,9 @@ void main(int argc, char** argv)
            256 possible programs with 256 characters 
            256 arguments for each program
         */
-        char** programs = (char**)malloc(256 * sizeof(char*));
-        char*** args = (char***)malloc(256 * sizeof(char**));
-        for (int i = 0; i < 256; i++)
-                args[i] = (char**)malloc(256 * sizeof(char*));
+        char* programs[256];
+        char* args[256][256];
+        int numprograms = 0;
 
         int outeriter = 0; /* per line */
         while (p1getline(fd, buffer, sizeof(buffer)) != 0)
@@ -95,6 +94,22 @@ void main(int argc, char** argv)
                 }
                 args[outeriter][inneriter - 1] = NULL;
                 outeriter++;
+                numprograms++;
+        }
+
+        int pid[numprograms];
+        for (int i = 0; i < numprograms; i++)
+        {
+                pid[i] = fork();
+                if (pid[i] = 0)
+                {
+                        execvp(programs[i], args[i]);
+                }
+        }
+
+        for (int i = 0; i < numprograms; i++)
+        {
+                wait(pid[i]);
         }
 
         /* closers */
@@ -103,9 +118,4 @@ void main(int argc, char** argv)
                 free(filename);
                 close(fd);
         }
-
-        free(programs);
-        for (int i = 0; i < 256; i++)
-                free(args[i]);
-        free(args);
 }
