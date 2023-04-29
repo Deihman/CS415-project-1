@@ -102,11 +102,13 @@ void main(int argc, char** argv)
                 numprograms++;
         }
 
+        p1putstr(stdout, "Starting forks\n");
+
         pid_t pid[numprograms];
         for (int i = 0; i < numprograms; i++)
         {
                 pid[i] = fork();
-                if (pid[i] = 0)
+                if (pid[i] == 0)
                 {
                         execvp(programs[i], args[i]);
                 }
@@ -114,7 +116,8 @@ void main(int argc, char** argv)
 
         for (int i = 0; i < numprograms; i++)
         {
-                wait(&pid[i]);        
+               wait(&pid[i]);
+               p1putstr(stdout, "process finished\n");
         }
 
         /* closers */
