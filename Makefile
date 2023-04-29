@@ -1,14 +1,11 @@
-uspsv1 : uspsv1.o p1fxns.o
+uspsvx : uspsv1.o p1fxns.o
+	make *.o
 	cc -o uspsv1 uspsv1.o p1fxns.o
-
-uspsv2 : uspsv2.o p1fxns.o
 	cc -o uspsv2 uspsv2.o p1fxns.o
-
-uspsv3 : uspsv3.o p1fxns.o
 	cc -o uspsv3 uspsv3.o p1fxns.o
-
-uspsv4 : uspsv4.o p1fxns.o
 	cc -o uspsv4 uspsv4.o p1fxns.o
+	cc -o cpubound cpubound.o
+	cc -o iobound iobound.o
 
 uspsv1.o : uspsv1.c p1fxns.h 
 	cc -c uspsv1.c
@@ -24,3 +21,9 @@ uspsv4.o : uspsv4.c p1fxns.h
 
 p1fxns.o : p1fxns.c p1fxns.h
 	cc -c p1fxns.c
+
+cpubound.o : cpubound.c
+	cc -c cpubound.c
+
+iobound.o : iobound.c
+	cc -c iobound.c

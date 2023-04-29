@@ -1,5 +1,10 @@
 #include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "p1fxns.h"
 
@@ -7,8 +12,8 @@ void main(int argc, char** argv)
 {
         extern char* optarg;
         extern int optind;
-        extern int O_RDONLY;
         enum {stdin = 0, stdout = 1, stderr = 2};
+        int env = setenv("USPS_QUANTUM_MSEC", "500", 1);
 
         int opt;
         int q = 0;
@@ -109,7 +114,7 @@ void main(int argc, char** argv)
 
         for (int i = 0; i < numprograms; i++)
         {
-                wait(pid[i]);
+                wait(&pid[i]);        
         }
 
         /* closers */
