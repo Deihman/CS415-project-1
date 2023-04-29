@@ -13,7 +13,7 @@ void main(int argc, char** argv)
         extern char* optarg;
         extern int optind;
         enum {stdin = 0, stdout = 1, stderr = 2};
-        int env = setenv("USPS_QUANTUM_MSEC", "500", 1);
+        setenv("USPS_QUANTUM_MSEC", "500", 1);
 
         int opt;
         int q = 0;
@@ -86,9 +86,9 @@ void main(int argc, char** argv)
         int outeriter = 0; /* per line */
         while (p1getline(fd, buffer, sizeof(buffer)) != 0)
         {
-                int i = 0;
+                int getworditer = 0;
                 int inneriter = 0; /* per word */
-                while ((i = p1getword(buffer, i, word)) != -1)
+                while ((getworditer = p1getword(buffer, getworditer, word)) != -1)
                 {
                         if (inneriter == 0)
                                 programs[outeriter] = word;
@@ -102,7 +102,7 @@ void main(int argc, char** argv)
                 numprograms++;
         }
 
-        int pid[numprograms];
+        pid_t pid[numprograms];
         for (int i = 0; i < numprograms; i++)
         {
                 pid[i] = fork();
