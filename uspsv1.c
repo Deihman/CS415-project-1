@@ -8,12 +8,20 @@
 
 #include "p1fxns.h"
 
+/* 
+   4096 length buffer
+   256 possible programs with 256 characters 
+   256 arguments for each program
+*/
+#define BUFFLEN 4096
+#define MAXPROGRAMS 256
+#define MAXARGS 256
+
 void main(int argc, char** argv)
 {
         extern char* optarg;
         extern int optind;
         enum {stdin = 0, stdout = 1, stderr = 2};
-        setenv("USPS_QUANTUM_MSEC", "500", 1);
 
         int opt;
         int q = 0;
@@ -72,58 +80,71 @@ void main(int argc, char** argv)
         /* 
            build arg structure: store functions in char**, args for each function in char***
         */
-        char buffer[256];
-        char word[256];
+        char buffer[BUFFLEN];
+        char word[BUFFLEN];
 
-        /* 
-           256 possible programs with 256 characters 
-           256 arguments for each program
-        */
-        char* programs[256];
-        char* args[256][256];
+        char* programs[MAXPROGRAMS];
+        char* args[MAXPROGRAMS][MAXARGS];
         int numprograms = 0;
 
-        int outeriter = 0; /* per line */
-        while (p1getline(fd, buffer, sizeof(buffer)) != 0)
+        while (numprograms < MAXPROGRAMS && p1getline(fd, buffer, sizeof(buffer)) != 0)
         {
+                int yeah = 0;
                 int getworditer = 0;
-                int inneriter = 0; /* per word */
-                while ((getworditer = p1getword(buffer, getworditer, word)) != -1)
+                int numargs = 0; /* per word */
+                while (numargs < MAXARGS && (getworditer = p1getword(buffer, getworditer, word)) != -1)
                 {
-                        if (inneriter == 0)
-                                programs[outeriter] = word;
+                        yeah = 1;
+                        if (numargs == 0)
+                                programs[numprograms] = p1strdup(word);
                         else
-                                args[outeriter][inneriter - 1] = word;
+                                args[numprograms][numargs - 1] = p1strdup(word);
                         
-                        inneriter++;
+                        numargs++;
                 }
-                args[outeriter][inneriter - 1] = NULL;
-                outeriter++;
-                numprograms++;
+
+                if (numargs == MAXARGS)
+                        p1putstr(stderr, "WARNING: argument buffer is full, continuing\n");
+
+                if (yeah)
+                {
+                        args[numprograms][numargs - 1] = NULL;
+                        numprograms++;
+                }
         }
+
+        if (numprograms == MAXPROGRAMS)
+                p1putstr(stderr, "WARNING: program buffer is full, continuing\n");
 
         p1putstr(stdout, "Starting forks\n");
 
-        pid_t pid[numprograms];
+        pid_t pid[MAXPROGRAMS];
         for (int i = 0; i < numprograms; i++)
         {
                 pid[i] = fork();
                 if (pid[i] == 0)
                 {
                         execvp(programs[i], args[i]);
+                        break;
                 }
         }
 
         for (int i = 0; i < numprograms; i++)
-        {
                wait(&pid[i]);
-               p1putstr(stdout, "process finished\n");
-        }
 
         /* closers */
         if (filename != NULL)
         {
                 free(filename);
                 close(fd);
+        }
+
+        for(int i = 0; i < numprograms; i++)
+        {
+                free(programs[i]);
+                for (int j = 0; args[i][j] != NULL; j++)
+                {
+                        free(args[i][j]);
+                }
         }
 }
