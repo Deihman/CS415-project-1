@@ -58,3 +58,6 @@ uspsv3
 uspsv4
 iobound
 cpubound
+
+# test files
+*.txt
