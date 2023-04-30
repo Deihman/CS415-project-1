@@ -24,7 +24,6 @@ char** ga;
 
 void handler(int)
 {
-        printf("child %d exec %s\n", getpid(), gp);
         if (execvp(gp, ga) == -1)
         {
                 p1putstr(p1stderr, "execvp failed\n");
@@ -107,11 +106,9 @@ void main(int argc, char** argv)
                 int yeah = 0;
                 int getworditer = 0;
                 int numargs = 0; /* per word */
-                printf("buffer: %s\n", buffer);
                 while (numargs < MAXARGS && (getworditer = p1getword(buffer, getworditer, word)) != -1)
                 {
                         yeah = 1;
-                        printf("word: %s\n", word);
                         if (numargs == 0)
                                 programs[numprograms] = p1strdup(word);
                         args[numprograms][numargs++] = p1strdup(word);
@@ -127,21 +124,15 @@ void main(int argc, char** argv)
         if (numprograms == MAXPROGRAMS)
                 p1putstr(p1stderr, "WARNING: program buffer is full, continuing\n");
 
-        printf("numprograms: %d\n", numprograms);
         p1putstr(p1stdout, "Starting forks\n");
 
         pid_t pid[MAXPROGRAMS];
         for (int i = 0; i < numprograms; i++)
         {
                 pid[i] = fork();
-                if (pid[i] == 0)
-                        printf("Child process %d\n", getpid());
-                else
-                        printf("pid %d forked to %d\n", getpid(), pid[i]);
 
                 if (pid[i] == 0)
                 {
-                        printf("child %d waiting\n", getpid());
                         gp = programs[i];
                         ga = args[i];
                         if (signal(SIGUSR1, handler) == SIG_ERR)
@@ -153,33 +144,19 @@ void main(int argc, char** argv)
                 }
         }
 
-        printf("Hello from pid %d\n", getpid());
-
         p1putstr(p1stdout, "waiting for children (5 sec)\n");
         sleep(5);
         for (int i = 0; i < numprograms; i++)
-        {
-               printf("pid %d sending SIGUSR1 to pid %d\n", getpid(), pid[i]);
                kill(pid[i], SIGUSR1);
-        }
 
         for (int i = 0; i < numprograms; i++)
-        {
-               printf("pid %d sending SIGSTOP to pid %d\n", getpid(), pid[i]);
                kill(pid[i], SIGSTOP);
-        }
 
         for (int i = 0; i < numprograms; i++)
-        {
-               printf("pid %d sending SIGCONT to pid %d\n", getpid(), pid[i]);
                kill(pid[i], SIGCONT);
-        }
 
         for (int i = 0; i < numprograms; i++)
-        {
-               printf("pid %d waiting on pid %d\n", getpid(), pid[i]);
                wait(&pid[i]);
-        }
 
         /* closers */
         if (filename != NULL)
