@@ -97,20 +97,14 @@ void main(int argc, char** argv)
                         yeah = 1;
                         if (numargs == 0)
                                 programs[numprograms] = p1strdup(word);
-                        else
-                                args[numprograms][numargs - 1] = p1strdup(word);
-                        
-                        numargs++;
+                        args[numprograms][numargs++] = p1strdup(word);
                 }
 
                 if (numargs == MAXARGS)
                         p1putstr(stderr, "WARNING: argument buffer is full, continuing\n");
 
                 if (yeah)
-                {
-                        args[numprograms][numargs - 1] = NULL;
-                        numprograms++;
-                }
+                        args[numprograms++][numargs] = NULL;
         }
 
         if (numprograms == MAXPROGRAMS)
@@ -124,7 +118,11 @@ void main(int argc, char** argv)
                 pid[i] = fork();
                 if (pid[i] == 0)
                 {
-                        execvp(programs[i], args[i]);
+                        if (execvp(programs[i], args[i]) == -1)
+                        {
+                                p1putstr(stderr, "execvp error\n");
+                                _exit(1);
+                        }
                         break;
                 }
         }
