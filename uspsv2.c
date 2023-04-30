@@ -19,22 +19,15 @@
 #define MAXARGS 256
 
 enum {p1stdin = 0, p1stdout = 1, p1stderr = 2};
+char* gp;
+char** ga;
 
-void waitforSIGUSR1()
+void handler(int)
 {
-        int sig = SIGUSR1;
-        sigset_t set;
-        sigemptyset(&set);
-
-        if (sigaddset(&set, SIGUSR1) == -1)
+        printf("child %d exec %s\n", getpid(), gp);
+        if (execvp(gp, ga) == -1)
         {
-                p1perror(p1stderr, "sigaddset error");
-                _exit(1);
-        }
-
-        if (sigwait(&set, &sig) != SIGUSR1)
-        {
-                p1perror(p1stderr, "sigwait error");
+                p1putstr(p1stderr, "execvp failed\n");
                 _exit(1);
         }
 }
@@ -106,7 +99,7 @@ void main(int argc, char** argv)
         char word[BUFFLEN];
 
         char* programs[MAXPROGRAMS];
-        char* args[MAXPROGRAMS][MAXARGS];
+        char* args[MAXPROGRAMS][MAXARGS+1];
         int numprograms = 0;
 
         while (numprograms < MAXPROGRAMS && p1getline(fd, buffer, sizeof(buffer)) != 0)
@@ -137,8 +130,6 @@ void main(int argc, char** argv)
         printf("numprograms: %d\n", numprograms);
         p1putstr(p1stdout, "Starting forks\n");
 
-        int parentpid = getpid();
-
         pid_t pid[MAXPROGRAMS];
         for (int i = 0; i < numprograms; i++)
         {
@@ -151,20 +142,38 @@ void main(int argc, char** argv)
                 if (pid[i] == 0)
                 {
                         printf("child %d waiting\n", getpid());
-                        //waitforSIGUSR1();
-                        printf("child %d exec %s\n", getpid(), programs[i]);
-                        if (execvp(programs[i], args[i]) == -1)
+                        gp = programs[i];
+                        ga = args[i];
+                        if (signal(SIGUSR1, handler) == SIG_ERR)
                         {
-                                p1putstr(p1stderr, "execvp failed\n");
+                                p1perror(p1stderr, "signal error\n");
                                 _exit(1);
                         }
-                        break;
+                        sleep(500);
                 }
         }
 
         printf("Hello from pid %d\n", getpid());
 
+        p1putstr(p1stdout, "waiting for children (5 sec)\n");
+        sleep(5);
+        for (int i = 0; i < numprograms; i++)
+        {
+               printf("pid %d sending SIGUSR1 to pid %d\n", getpid(), pid[i]);
+               kill(pid[i], SIGUSR1);
+        }
 
+        for (int i = 0; i < numprograms; i++)
+        {
+               printf("pid %d sending SIGSTOP to pid %d\n", getpid(), pid[i]);
+               kill(pid[i], SIGSTOP);
+        }
+
+        for (int i = 0; i < numprograms; i++)
+        {
+               printf("pid %d sending SIGCONT to pid %d\n", getpid(), pid[i]);
+               kill(pid[i], SIGCONT);
+        }
 
         for (int i = 0; i < numprograms; i++)
         {
@@ -187,4 +196,6 @@ void main(int argc, char** argv)
                         free(args[i][j]);
                 }
         }
+
+        p1putstr(p1stdout, "exiting...\n");
 }
