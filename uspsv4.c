@@ -29,10 +29,136 @@ int gactiveiter = -1;
 char* programs[MAXPROGRAMS];
 char* args[MAXPROGRAMS][MAXARGS+1];
 
-
-void printstatus()
+/* 
+ * two files per program
+ * stat: comm (2), utime (14), stime (15), rss (24)
+ * io: rchar, wchar
+ * 
+ * comm is the program name
+ * utime + stime / sysconf(_SC_CLK_TCK) is the program runtime
+ * rss is the actual amount of memory used
+ * rchar is the number of bytes read by the program
+ * wchar is the number of bytes written by the program
+ */
+void printstatus(pid_t p)
 {
-    
+        char pidstr[BUFFLEN];
+        char prefix[BUFFLEN] = "/proc/";
+        char pidstat[BUFFLEN];
+        char pidio[BUFFLEN];
+
+        char comm[BUFFLEN];
+        char utimestr[BUFFLEN];
+        char stimestr[BUFFLEN];
+        char combtimestr[BUFFLEN];
+        char rss[BUFFLEN];
+
+        char rchar[BUFFLEN];
+        char wchar[BUFFLEN];
+
+        int utimeint;
+        int stimeint;
+        int combtime;
+        long tick = sysconf(_SC_CLK_TCK);
+
+        p1itoa(p, pidstr);
+        p1strcat(prefix, pidstr);
+        p1strcpy(pidstat, prefix);
+        p1strcpy(pidio, prefix);
+        p1strcat(pidstat, "/stat");
+        p1strcat(pidio, "/io");
+
+        int statfd = open(pidstat, O_RDONLY);
+        int iofd = open(pidio, O_RDONLY);
+
+        if (statfd == -1 || iofd == -1)
+        {
+                p1putstr(p1stderr, "unable to open proc files\n");
+                _exit(1);
+        }
+
+        int wordindex = 0;
+        int charindex = 0;        
+
+        char linebuffer[BUFFLEN];
+        char wordbuffer[BUFFLEN];
+
+        if (p1getline(statfd, linebuffer, sizeof(linebuffer)) == 0)
+        {
+                p1putstr(p1stderr, "unable to read stat\n");
+                _exit(1);
+        }
+
+        //p1putstr(p1stdout, linebuffer);
+
+        while ((charindex = p1getword(linebuffer, charindex, wordbuffer)) != -1)
+        {
+                switch(wordindex)
+                {
+                        case 1:
+                                p1strcpy(comm, wordbuffer);
+                                break;
+                        case 13:
+                                p1strcpy(utimestr, wordbuffer);
+                                break;
+                        case 14:
+                                p1strcpy(stimestr, wordbuffer);
+                                break;
+                        case 23:
+                                p1strcpy(rss, wordbuffer);
+                                break;
+                        default:
+                                break;
+                }
+
+                wordindex++;
+        }
+
+        if (wordindex < 23)
+        {
+                p1putstr(p1stderr, "unable to parse stat\n");
+                _exit(1);
+        }
+
+        if (p1getline(iofd, linebuffer, sizeof(linebuffer)) == 0)
+        {
+                p1putstr(p1stderr, "unable to read io\n");
+                _exit(1);
+        }
+
+        /*p1putstr(p1stdout, linebuffer);*/
+
+        charindex = 0;
+        while (p1getline(iofd, linebuffer, sizeof(linebuffer)) != 0)
+        {
+                charindex = 0;
+                charindex = p1getword(linebuffer, charindex, wordbuffer);
+                if (p1strneq(wordbuffer, "rchar:", 6))
+                        charindex = p1getword(linebuffer, charindex, rchar);
+                if (p1strneq(wordbuffer, "wchar:", 6))
+                        charindex = p1getword(linebuffer, charindex, wchar);
+        }
+
+        utimeint = p1atoi(utimestr);
+        stimeint = p1atoi(stimestr);
+
+        combtime = (utimeint + stimeint) / tick;
+
+        p1itoa(combtime, combtimestr);
+
+        p1putstr(p1stdout, combtimestr);
+        p1putstr(p1stdout, ", ");
+        p1putstr(p1stdout, rss);
+        p1putstr(p1stdout, ", ");
+        /*p1putstr(p1stdout, rchar);
+        p1putstr(p1stdout, ", ");*/
+        p1putstr(p1stdout, wchar);
+        p1putstr(p1stdout, ", ");
+        p1putstr(p1stdout, comm);
+        p1putstr(p1stdout, "\n");
+
+        close(statfd);
+        close(iofd);
 }
 
 
@@ -54,7 +180,6 @@ void cleanup()
 
 void handler(int)
 {
-        printf("child %d exec %s\n", getpid(), gp);
         if (execvp(gp, ga) == -1)
         {
                 p1putstr(p1stderr, "execvp failed\n");
@@ -65,7 +190,6 @@ void handler(int)
 
 void alarmhandler(int)
 {
-        printf("ding!\n");
         if (numpids == 0)
         {
                 cleanup();
@@ -76,6 +200,10 @@ void alarmhandler(int)
         gactiveiter = (gactiveiter + 1) % numpids;
 
         kill(pid[gactiveiter], SIGCONT);
+
+        p1putstr(p1stdout, "CPUT\tMem\tIO w\tCmd\n");
+        for (int i = 0; i < numpids; i++)
+                printstatus(pid[i]);
 }
 
 
@@ -107,7 +235,6 @@ void deadchildhandler(int)
                         _exit(0);
                 }
 
-                fprintf(stdout, "removed pid %d\n", p);
                 removeandshift(p);
         }
                 
@@ -184,11 +311,10 @@ void main(int argc, char** argv)
                 int yeah = 0;
                 int getworditer = 0;
                 int numargs = 0; /* per word */
-                printf("buffer: %s\n", buffer);
+
                 while (numargs < MAXARGS && (getworditer = p1getword(buffer, getworditer, word)) != -1)
                 {
                         yeah = 1;
-                        printf("word: %s\n", word);
                         if (numargs == 0)
                                 programs[numprograms] = p1strdup(word);
                         args[numprograms][numargs++] = p1strdup(word);
@@ -208,20 +334,14 @@ void main(int argc, char** argv)
         if (numprograms == MAXPROGRAMS)
                 p1putstr(p1stderr, "WARNING: program buffer is full, continuing\n");
 
-        printf("numprograms: %d\n", numprograms);
         p1putstr(p1stdout, "Starting forks\n");
 
         for (int i = 0; i < numprograms; i++)
         {
                 pid[i] = fork();
-                if (pid[i] == 0)
-                        printf("Child process %d\n", getpid());
-                else
-                        printf("pid %d forked to %d\n", getpid(), pid[i]);
-
+        
                 if (pid[i] == 0)
                 {
-                        printf("child %d waiting\n", getpid());
                         gp = programs[i];
                         ga = args[i];
                         if (signal(SIGUSR1, handler) == SIG_ERR)
@@ -232,8 +352,6 @@ void main(int argc, char** argv)
                         sleep(500);
                 }
         }
-
-        printf("Hello from pid %d\n", getpid());
 
         if (signal(SIGALRM, alarmhandler) == SIG_ERR)
         {
@@ -251,9 +369,7 @@ void main(int argc, char** argv)
         sleep(5);
         for (int i = 0; i < numprograms; i++)
         {
-               printf("pid %d sending SIGUSR1 to pid %d\n", getpid(), pid[i]);
                kill(pid[i], SIGUSR1);
-               printf("pid %d sending SIGSTOP to pid %d\n", getpid(), pid[i]);
                kill(pid[i], SIGSTOP);
         }
 
@@ -266,5 +382,4 @@ void main(int argc, char** argv)
 
         while (1)
         { pause(); }
-        printf("~ tcl\n");
 }
