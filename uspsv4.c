@@ -30,6 +30,12 @@ char* programs[MAXPROGRAMS];
 char* args[MAXPROGRAMS][MAXARGS+1];
 
 
+void printstatus()
+{
+    
+}
+
+
 void cleanup()
 {
         /* closers */
