@@ -7,25 +7,27 @@ uspsvx : uspsv1.o uspsv2.o uspsv3.o uspsv4.o cpubound.o iobound.o p1fxns.o
 	cc -o iobound iobound.o
 
 uspsv1.o : uspsv1.c p1fxns.h 
-	cc -c uspsv1.c
+	cc -c -g uspsv1.c
 
 uspsv2.o : uspsv2.c p1fxns.h
-	cc -c uspsv2.c
+	cc -c -g uspsv2.c
 
 uspsv3.o : uspsv3.c p1fxns.h
-	cc -c uspsv3.c
+	cc -c -g uspsv3.c
 
 uspsv4.o : uspsv4.c p1fxns.h
-	cc -c uspsv4.c
+	cc -c -g uspsv4.c
 
 p1fxns.o : p1fxns.c p1fxns.h
-	cc -c p1fxns.c
+	cc -c -g p1fxns.c
 
 cpubound.o : cpubound.c
-	cc -c cpubound.c
+	cc -c -g cpubound.c
 
 iobound.o : iobound.c
-	cc -c iobound.c
+	cc -c -g iobound.c
 
 clean : 
 	rm *.o uspsv1 uspsv2 uspsv3 uspsv4 cpubound iobound
+
+all : clean uspsvx
